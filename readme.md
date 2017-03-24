@@ -2,7 +2,7 @@
 ### 本例需求：将Mic采集的PCM转成AAC，可得到两种不同数据,本例采用AudioQueue存储
 ### 原理：由于需求更改为Mic采集的pcm一路提供给WebRTC使用，另一路将pcm转为aac，将aac提供给直播用的API。因此应该先让Mic采集原始pcm数据，采用队列保存，然后在回调函数中将其转换为aac提供给C++API
 
-![Alt text](https://cl.ly/010T0X1B1R27)
+![Alt text](/img/1.png)
 
 ### 源代码地址[PCM->AAC](https://github.com/ChengyangLi/XDXPCMToAACDemo)
 
