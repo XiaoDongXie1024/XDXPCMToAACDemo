@@ -5,6 +5,7 @@
 ![Alt text](/img/1.png)
 
 ### 源代码地址[PCM->AAC](https://github.com/ChengyangLi/XDXPCMToAACDemo)
+### 博客地址[PCM->AAC](https://chengyangli.github.io/2017/03/24/record)
 
 ## 一.本文需要基本知识点
 
