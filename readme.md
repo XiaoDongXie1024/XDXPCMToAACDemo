@@ -4,8 +4,8 @@
 
 ![Alt text](/img/1.png)
 
-### 源代码地址[PCM->AAC](https://github.com/ChengyangLi/XDXPCMToAACDemo)
-### 博客地址[PCM->AAC](https://chengyangli.github.io/2017/03/24/record)
+### 源代码地址:[PCM->AAC](https://github.com/ChengyangLi/XDXPCMToAACDemo)
+### 博客地址:[PCM->AAC](https://chengyangli.github.io/2017/03/24/record)
 
 ## 一.本文需要基本知识点
 
@@ -111,11 +111,13 @@ AudioSessionGetProperty(
 
 ## 二.主要方法解析
 
+### 调用步骤，首先将项目设置为MRC,在控制器中配置audioSession基本设置(基本设置，不会谷歌)，导入该头文件，直接在需要时机调用该类startRecord与stopRecord方法，另外还提供了生成录音文件的功能，具体参考github中的代码。
+
 ### 1.设置AudioStreamBasicDescription 基本信息
 ```
 -(void)startRecorderTest {
     // save collect pcm data, 下面一行是本人采用单独设计的队列，大家可以自己定义一个队列存取
-    // TVUSignaling::getInstance()->InitQueue(&collectPcmQueue);
+    // XDXSignaling::getInstance()->InitQueue(&collectPcmQueue);
     // 用特定队列存取pcm的值，在这里初始化，可以采用不同方式进行存储，也可以自己定义一个队列，具体实现不做解释
     
 // 是否正在录制
@@ -237,6 +239,7 @@ typedef struct AudioStreamBasicDescription  AudioStreamBasicDescription;
                             &dataFormat.mChannelsPerFrame);
     dataFormat.mFormatID = formatID;
     
+    // 关于采集PCM数据是根据苹果官方文档给出的Demo设置，至于为什么这么设置可能与采集回调函数内部实现有关，修改的话请谨慎
     if (formatID == kAudioFormatLinearPCM)
     {
     	 /*
@@ -249,7 +252,7 @@ typedef struct AudioStreamBasicDescription  AudioStreamBasicDescription;
         dataFormat.mBitsPerChannel  = 16;
         // 8bit为1byte，即为1个通道里1帧需要采集2byte数据，再*通道数，即为所有通道采集的byte数目
         dataFormat.mBytesPerPacket  = dataFormat.mBytesPerFrame = (dataFormat.mBitsPerChannel / 8) * dataFormat.mChannelsPerFrame;
-        // 每个包中的帧数
+        // 每个包中的帧数，采集PCM数据需要将dataFormat.mFramesPerPacket设置为1，否则回调不成功
         dataFormat.mFramesPerPacket = 1;
     }
 }
@@ -259,7 +262,8 @@ typedef struct AudioStreamBasicDescription  AudioStreamBasicDescription;
 
 ```
 -(void)convertBasicSetting {
-    
+    // 此处目标格式其他参数均为默认，系统会自动计算，否则无法进入encodeConverterComplexInputDataProc回调
+
     AudioStreamBasicDescription sourceDes = dataFormat; // 原始格式
     AudioStreamBasicDescription targetDes;              // 转码后格式
     
@@ -268,6 +272,7 @@ typedef struct AudioStreamBasicDescription  AudioStreamBasicDescription;
     targetDes.mFormatID           = kAudioFormatMPEG4AAC;
     targetDes.mSampleRate         = 44100.0;
     targetDes.mChannelsPerFrame   = dataFormat.mChannelsPerFrame;
+    targetDes.mFramesPerPacket    = 1024; // 采集的为AAC需要将targetDes.mFramesPerPacket设置为1024，AAC软编码需要喂给转换器1024个样点才开始编码，这与回调函数中inNumPackets有关，不可随意更改
     
     OSStatus status     = 0;
     UInt32 targetSize   = sizeof(targetDes);
@@ -429,14 +434,13 @@ static void inputBufferHandler(void *                                 inUserData
     TVURecorder *recoder        = (TVURecorder *)inUserData;
     
     // collect pcm data，可以使用不用方式在此存储pcm原始数据
-    TVUSignaling::getInstance()->EnQueue(&collectPcmQueue, (const char*)inBuffer->mAudioData, inBuffer->mAudioDataByteSize, KSignalingTypeLogin);
-    
-// inNumPackets设置为1表示编码产生1帧数据即返回
-    inNumPackets                = 1;
+    // XDXSignaling::getInstance()->EnQueue(&collectPcmQueue, (const char*)inBuffer->mAudioData, inBuffer->mAudioDataByteSize, KSignalingTypeLogin);
+  
 
 // 将PCM数据转换为AAC
-    AudioBufferList *bufferList = convertPCMToAAC(inBuffer, recoder, inNumPackets);
-    // 释放内存
+    AudioBufferList *bufferList = convertPCMToAAC(inBuffer, recoder);
+    // 释放内存，需要按层次释放，不懂请回顾C语言
+    free(bufferList->mBuffers[0].mData);
     free(bufferList);
     //begin write audio data for record audio only
     
@@ -449,6 +453,8 @@ static void inputBufferHandler(void *                                 inUserData
 ```
 > 解析回调函数：相当于中断服务函数，每次录取到音频数据就进入这个函数  
 
+  注意：inNumPackets 总包数：音频队列缓冲区大小 （在先前估算缓存区大小为2048）/ （dataFormat.mFramesPerPacket (采集数据每个包中有多少帧，此处在初始化设置中为1) * dataFormat.mBytesPerFrame（每一帧中有多少个字节，此处在初始化设置中为每一帧中两个字节）），所以用捕捉PCM数据时inNumPackets为1024。如果采集的数据是PCM需要将dataFormat.mFramesPerPacket设置为1，而本例中最终要的数据为AAC,在AAC格式下需要将mFramesPerPacket设置为1024.也就是采集到的inNumPackets为1，所以inNumPackets这个参数在此处可以忽略，因为在转换器中传入的inNumPackets应该为AAC格式下默认的1，在此后写入文件中也应该传的是转换好的inNumPackets。
+
 - inAQ 是调用回调函数的音频队列  
 - inBuffer 是一个被音频队列填充新的音频数据的音频队列缓冲区，它包含了回调函数写入文件所需要的新数据  
 - inStartTime 是缓冲区中的一采样的参考时间，对于基本的录制，你的毁掉函数不会使用这个参数  
@@ -456,13 +462,12 @@ static void inputBufferHandler(void *                                 inUserData
 
 ```
 // PCM -> AAC
-AudioBufferList* convertPCMToAAC (AudioQueueBufferRef inBuffer, TVURecorder *recoder, UInt32 inNumPackets) {
+AudioBufferList* convertPCMToAAC (AudioQueueBufferRef inBuffer, XDXRecorder *recoder) {
     
     UInt32   maxPacketSize    = 0;
     UInt32   size             = sizeof(maxPacketSize);
     OSStatus status;
     
-	// 获取转换器最大输出包的大小
     status = AudioConverterGetProperty(_encodeConvertRef,
                                        kAudioConverterPropertyMaximumOutputPacketSize,
                                        &size,
@@ -478,7 +483,12 @@ AudioBufferList* convertPCMToAAC (AudioQueueBufferRef inBuffer, TVURecorder *rec
 
     AudioStreamPacketDescription outputPacketDescriptions;
     
-    // inNumPackets设置为1表示编码产生1帧数据即返回
+    /* inNumPackets设置为1表示编码产生1帧数据即返回，官方：On entry, the capacity of 
+	outOutputData expressed in packets in the converter's output format. On exit,
+	 the number of packets of converted data that were written to outOutputData.
+	  在输入表示输出数据的最大容纳能力 在转换器的输出格式上，在转换完成时表示多少个包被写入
+	*/
+    UInt32 inNumPackets = 1;
     status = AudioConverterFillComplexBuffer(_encodeConvertRef,
                                              encodeConverterComplexInputDataProc,	// 填充数据的回调函数
                                              inBuffer->mAudioData,		// 音频队列缓冲区中数据
@@ -489,7 +499,7 @@ AudioBufferList* convertPCMToAAC (AudioQueueBufferRef inBuffer, TVURecorder *rec
     
     if (recoder.needsVoiceDemo)
     {
-	// 将AAC数据写入文件
+	     // if inNumPackets set not correct, file will not normally play. 将转换器转换出来的包写入文件中，inNumPackets表示写入文件的起始位置
         OSStatus status = AudioFileWritePackets(recoder.mRecordFile,
                                                 FALSE,
                                                 bufferList->mBuffers[0].mDataByteSize,
@@ -498,7 +508,9 @@ AudioBufferList* convertPCMToAAC (AudioQueueBufferRef inBuffer, TVURecorder *rec
                                                 &inNumPackets,
                                                 bufferList->mBuffers[0].mData);
         // log4cplus_info("write file","write file status = %d",(int)status);
-        recoder.mRecordPacket += inNumPackets;
+        if (status == noErr) {
+            recoder.mRecordPacket += inNumPackets;  // 用于记录起始位置
+        }
     }
 
     return bufferList;
@@ -507,5 +519,37 @@ AudioBufferList* convertPCMToAAC (AudioQueueBufferRef inBuffer, TVURecorder *rec
 > 解析
 
  outputPacketDescriptions数组是每次转换的AAC编码后各个包的描述,但这里每次只转换一包数据(由传入的packetSize决定)。调用AudioConverterFillComplexBuffer触发转码，他的第二个参数是填充原始音频数据的回调。转码完成后，会将转码的数据存放在它的第五个参数中(bufferList).
+ 
+ ```
+ // 录制声音功能
+ -(void)startVoiceDemo
+{
+    NSArray *searchPaths    = NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES);
+    NSString *documentPath  = [[searchPaths objectAtIndex:0] stringByAppendingPathComponent:@"VoiceDemo"];
+    OSStatus status;
+    
+    // Get the full path to our file.
+    NSString *fullFileName  = [NSString stringWithFormat:@"%@.%@",[[XDXDateTool shareXDXDateTool] getDateWithFormat_yyyy_MM_dd_HH_mm_ss],@"caf"];
+    NSString *filePath      = [documentPath stringByAppendingPathComponent:fullFileName];
+    [mRecordFilePath release];
+    mRecordFilePath         = [filePath copy];;
+    CFURLRef url            = CFURLCreateWithString(kCFAllocatorDefault, (CFStringRef)filePath, NULL);
+    
+    // create the audio file
+    status                  = AudioFileCreateWithURL(url, kAudioFileMPEG4Type, &_targetDes, kAudioFileFlags_EraseFile, &mRecordFile);
+    if (status != noErr) {
+        // log4cplus_info("Audio Recoder","AudioFileCreateWithURL Failed, status:%d",(int)status);
+    }
+    
+    CFRelease(url);
+    
+    // add magic cookie contain header file info for VBR data
+    [self copyEncoderCookieToFile];
+    
+    mNeedsVoiceDemo         = YES;
+    NSLog(@"%s",__FUNCTION__);
+}
+ ```
+ 
  
 ### 总结：第一次接触音频类程序底层的处理，首先看了很多相关博客，简书，然后manager让我通读CoreAudio官方文档，感觉受益颇大，很多优秀的文章都是把苹果官方文档[Core Audio](https://developer.apple.com/library/content/documentation/MusicAudio/Conceptual/CoreAudioOverview/CoreAudioEssentials/CoreAudioEssentials.html)内容翻译，包括苹果给的图都很形象，建议有时间的朋友可以通读一下，每个人的需求不同，做的过程中遇到的问题肯定不同，只有理解了每个参数的含义才能灵活的控制代码，希望可以帮到大家，喜欢的可以转载。
