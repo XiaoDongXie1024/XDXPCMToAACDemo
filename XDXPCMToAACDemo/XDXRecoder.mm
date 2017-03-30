@@ -10,7 +10,8 @@
 
 /*******************************************************************************************/
 
-    //  详细解析请参考博客：
+    //  详细解析请参考博客：chengyangli.github.io
+    //  简书:
 
 /*******************************************************************************************/
 
@@ -37,7 +38,7 @@ Float64 g_vstarttime = 0.0;
 AudioConverterRef               _encodeConvertRef;  ///< convert param
 AudioStreamBasicDescription     _targetDes;         ///< destination format
 
-AudioBufferList* convertPCMToAAC (AudioQueueBufferRef inBuffer, XDXRecorder *recoder, UInt32 inNumPackets);
+AudioBufferList* convertPCMToAAC (AudioQueueBufferRef inBuffer, XDXRecorder *recoder);
 
 #pragma mark - CallBack : collect pcm and  convert
 static void inputBufferHandler(void *                                 inUserData,
@@ -48,12 +49,17 @@ static void inputBufferHandler(void *                                 inUserData
                                const AudioStreamPacketDescription*	  inPacketDesc) {
     XDXRecorder *recoder        = (__bridge XDXRecorder *)inUserData;
     
+    /*
+     inNumPackets 总包数：音频队列缓冲区大小 （在先前估算缓存区大小为2048）/ （dataFormat.mFramesPerPacket (采集数据每个包中有多少帧，此处在初始化设置中为1) * dataFormat.mBytesPerFrame（每一帧中有多少个字节，此处在初始化设置中为每一帧中两个字节）），所以用捕捉PCM数据时inNumPackets为1024。
+     注意：如果采集的数据是PCM需要将dataFormat.mFramesPerPacket设置为1，而本例中最终要的数据为AAC,在AAC格式下需要将mFramesPerPacket设置为1024.也就是采集到的inNumPackets为1，所以inNumPackets这个参数在此处可以忽略，因为在转换器中传入的inNumPackets应该为AAC格式下默认的1，在此后写入文件中也应该传的是转换好的inNumPackets。
+     */
+    
     // collect pcm data，可以在此存储
     
+    AudioBufferList *bufferList = convertPCMToAAC(inBuffer, recoder);
     
-    inNumPackets                = 1;
-    AudioBufferList *bufferList = convertPCMToAAC(inBuffer, recoder, inNumPackets);
-    
+    // free memory
+    free(bufferList->mBuffers[0].mData);
     free(bufferList);
     // begin write audio data for record audio only
     
@@ -72,13 +78,13 @@ OSStatus encodeConverterComplexInputDataProc(AudioConverterRef              inAu
     
     ioData->mBuffers[0].mData           = inUserData;
     ioData->mBuffers[0].mNumberChannels = _targetDes.mChannelsPerFrame;
-    ioData->mBuffers[0].mDataByteSize   = 1024*2;
+    ioData->mBuffers[0].mDataByteSize   = 1024*2; // 2 为dataFormat.mBytesPerFrame 每一帧的比特数
     
     return 0;
 }
 
 // PCM -> AAC
-AudioBufferList* convertPCMToAAC (AudioQueueBufferRef inBuffer, XDXRecorder *recoder, UInt32 inNumPackets) {
+AudioBufferList* convertPCMToAAC (AudioQueueBufferRef inBuffer, XDXRecorder *recoder) {
     
     UInt32   maxPacketSize    = 0;
     UInt32   size             = sizeof(maxPacketSize);
@@ -98,6 +104,8 @@ AudioBufferList* convertPCMToAAC (AudioQueueBufferRef inBuffer, XDXRecorder *rec
     
     AudioStreamPacketDescription outputPacketDescriptions;
     
+    // inNumPackets设置为1表示编码产生1帧数据即返回，官方：On entry, the capacity of outOutputData expressed in packets in the converter's output format. On exit, the number of packets of converted data that were written to outOutputData. 在输入表示输出数据的最大容纳能力 在转换器的输出格式上，在转换完成时表示多少个包被写入
+    UInt32 inNumPackets = 1;
     // inNumPackets设置为1表示编码产生1帧数据即返回
     status = AudioConverterFillComplexBuffer(_encodeConvertRef,
                                              encodeConverterComplexInputDataProc,
@@ -109,6 +117,7 @@ AudioBufferList* convertPCMToAAC (AudioQueueBufferRef inBuffer, XDXRecorder *rec
     
     if (recoder.needsVoiceDemo)
     {
+        // if inNumPackets set not correct, file will not normally play. 将转换器转换出来的包写入文件中，inNumPackets表示写入文件的起始位置
         OSStatus status = AudioFileWritePackets(recoder.mRecordFile,
                                                 FALSE,
                                                 bufferList->mBuffers[0].mDataByteSize,
@@ -147,8 +156,7 @@ AudioBufferList* convertPCMToAAC (AudioQueueBufferRef inBuffer, XDXRecorder *rec
 @synthesize needsVoiceDemo = mNeedsVoiceDemo;
 #pragma mark private
 #pragma mark-------------------------------------------------------------------------------------------------------
-
-// if collect CBR needn't set magic cookie , if collect VBR should set magic cookie
+// if collect CBR needn't set magic cookie , if collect VBR should set magic cookie, if needn't to convert format that can be setting by audio queue directly.
 -(void)copyEncoderCookieToFile
 {
     // Grab the cookie from the converter and write it to the destination file.
@@ -174,6 +182,7 @@ AudioBufferList* convertPCMToAAC (AudioQueueBufferRef inBuffer, XDXRecorder *rec
                 printf("Even though some formats have cookies, some files don't take them and that's OK\n");
             }
         } else {
+            // If there is an error here, then the format doesn't have a cookie - this is perfectly fine as som formats do not.
             printf("Could not Get kAudioConverterCompressionMagicCookie from Audio Converter!\n");
         }
         
@@ -204,7 +213,7 @@ AudioBufferList* convertPCMToAAC (AudioQueueBufferRef inBuffer, XDXRecorder *rec
         dataFormat.mFormatFlags     = kLinearPCMFormatFlagIsSignedInteger | kLinearPCMFormatFlagIsPacked;
         dataFormat.mBitsPerChannel  = 16;
         dataFormat.mBytesPerPacket  = dataFormat.mBytesPerFrame = (dataFormat.mBitsPerChannel / 8) * dataFormat.mChannelsPerFrame;
-        dataFormat.mFramesPerPacket = 1;
+        dataFormat.mFramesPerPacket = 1; // 用AudioQueue采集pcm需要这么设置
     }
 }
 
@@ -242,6 +251,70 @@ AudioBufferList* convertPCMToAAC (AudioQueueBufferRef inBuffer, XDXRecorder *rec
     return bytes;
 }
 
+// 转码器基本信息设置
+- (void)convertBasicSetting {
+    // 此处目标格式其他参数均为默认，系统会自动计算，否则无法进入encodeConverterComplexInputDataProc回调
+    AudioStreamBasicDescription sourceDes = dataFormat;
+    AudioStreamBasicDescription targetDes;
+    
+    memset(&targetDes, 0, sizeof(targetDes));
+    targetDes.mFormatID                   = kAudioFormatMPEG4AAC;
+    targetDes.mSampleRate                 = 44100.0;
+    targetDes.mChannelsPerFrame           = dataFormat.mChannelsPerFrame;
+    targetDes.mFramesPerPacket            = 1024;
+    
+    OSStatus status     = 0;
+    UInt32 targetSize   = sizeof(targetDes);
+    status              = AudioFormatGetProperty(kAudioFormatProperty_FormatInfo, 0, NULL, &targetSize, &targetDes);
+    //    log4cplus_info("pcm", "create target data format status:%d",(int)status);
+    
+    memset(&_targetDes, 0, sizeof(_targetDes));
+    memcpy(&_targetDes, &targetDes, targetSize);
+    
+    // 选择软件编码
+    AudioClassDescription audioClassDes;
+    status = AudioFormatGetPropertyInfo(kAudioFormatProperty_Encoders,
+                                        sizeof(targetDes.mFormatID),
+                                        &targetDes.mFormatID,
+                                        &targetSize);
+    //    log4cplus_info("pcm","get kAudioFormatProperty_Encoders status:%d",(int)status);
+    
+    UInt32 numEncoders = targetSize/sizeof(AudioClassDescription);
+    AudioClassDescription audioClassArr[numEncoders];
+    AudioFormatGetProperty(kAudioFormatProperty_Encoders,
+                           sizeof(targetDes.mFormatID),
+                           &targetDes.mFormatID,
+                           &targetSize,
+                           audioClassArr);
+    //    log4cplus_info("pcm","wrirte audioClassArr status:%d",(int)status);
+    
+    for (int i = 0; i < numEncoders; i++) {
+        if (audioClassArr[i].mSubType == kAudioFormatMPEG4AAC && audioClassArr[i].mManufacturer == kAppleSoftwareAudioCodecManufacturer) {
+            memcpy(&audioClassDes, &audioClassArr[i], sizeof(AudioClassDescription));
+            break;
+        }
+    }
+    
+    status          = AudioConverterNewSpecific(&sourceDes, &targetDes, 1,
+                                                &audioClassDes, &_encodeConvertRef);
+    //    log4cplus_info("pcm","new convertRef status:%d",(int)status);
+    
+    targetSize      = sizeof(sourceDes);
+    status          = AudioConverterGetProperty(_encodeConvertRef, kAudioConverterCurrentInputStreamDescription, &targetSize, &sourceDes);
+    //    log4cplus_info("pcm","get sourceDes status:%d",(int)status);
+    
+    targetSize      = sizeof(targetDes);
+    status          = AudioConverterGetProperty(_encodeConvertRef, kAudioConverterCurrentOutputStreamDescription, &targetSize, &targetDes);
+    //    log4cplus_info("pcm","get targetDes status:%d",(int)status);
+    
+    // 设置码率，需要和采样率对应
+    UInt32 bitRate  = 64000;
+    targetSize      = sizeof(bitRate);
+    status          = AudioConverterSetProperty(_encodeConvertRef,
+                                                kAudioConverterEncodeBitRate,
+                                                targetSize, &bitRate);
+    //    log4cplus_info("pcm","set covert property bit rate status:%d",(int)status);
+}
 
 #pragma mark public
 #pragma mark--------------------------------------------------------------------------------------------------------
@@ -384,67 +457,5 @@ AudioBufferList* convertPCMToAAC (AudioQueueBufferRef inBuffer, XDXRecorder *rec
 //    log4cplus_info("pcm","AudioQueueStart status:%d",(int)status);
 }
 
-- (void)convertBasicSetting {
-    
-    AudioStreamBasicDescription sourceDes = dataFormat;
-    AudioStreamBasicDescription targetDes;
-    
-    memset(&targetDes, 0, sizeof(targetDes));
-    targetDes.mFormatID                   = kAudioFormatMPEG4AAC;
-    targetDes.mSampleRate                 = 44100.0;
-    targetDes.mChannelsPerFrame           = dataFormat.mChannelsPerFrame;
-    
-    OSStatus status     = 0;
-    UInt32 targetSize   = sizeof(targetDes);
-    status              = AudioFormatGetProperty(kAudioFormatProperty_FormatInfo, 0, NULL, &targetSize, &targetDes);
-//    log4cplus_info("pcm", "create target data format status:%d",(int)status);
-    
-    memset(&_targetDes, 0, sizeof(_targetDes));
-    memcpy(&_targetDes, &targetDes, targetSize);
-    
-    // 选择软件编码
-    AudioClassDescription audioClassDes;
-    status = AudioFormatGetPropertyInfo(kAudioFormatProperty_Encoders,
-                                        sizeof(targetDes.mFormatID),
-                                        &targetDes.mFormatID,
-                                        &targetSize);
-//    log4cplus_info("pcm","get kAudioFormatProperty_Encoders status:%d",(int)status);
-    
-    UInt32 numEncoders = targetSize/sizeof(AudioClassDescription);
-    AudioClassDescription audioClassArr[numEncoders];
-    AudioFormatGetProperty(kAudioFormatProperty_Encoders,
-                           sizeof(targetDes.mFormatID),
-                           &targetDes.mFormatID,
-                           &targetSize,
-                           audioClassArr);
-//    log4cplus_info("pcm","wrirte audioClassArr status:%d",(int)status);
-    
-    for (int i = 0; i < numEncoders; i++) {
-        if (audioClassArr[i].mSubType == kAudioFormatMPEG4AAC && audioClassArr[i].mManufacturer == kAppleSoftwareAudioCodecManufacturer) {
-            memcpy(&audioClassDes, &audioClassArr[i], sizeof(AudioClassDescription));
-            break;
-        }
-    }
-    
-    status          = AudioConverterNewSpecific(&sourceDes, &targetDes, 1,
-                                                &audioClassDes, &_encodeConvertRef);
-//    log4cplus_info("pcm","new convertRef status:%d",(int)status);
-    
-    targetSize      = sizeof(sourceDes);
-    status          = AudioConverterGetProperty(_encodeConvertRef, kAudioConverterCurrentInputStreamDescription, &targetSize, &sourceDes);
-//    log4cplus_info("pcm","get sourceDes status:%d",(int)status);
-    
-    targetSize      = sizeof(targetDes);
-    status          = AudioConverterGetProperty(_encodeConvertRef, kAudioConverterCurrentOutputStreamDescription, &targetSize, &targetDes);;
-//    log4cplus_info("pcm","get targetDes status:%d",(int)status);
-    
-    // 设置码率，需要和采样率对应
-    UInt32 bitRate  = 64000;
-    targetSize      = sizeof(bitRate);
-    status          = AudioConverterSetProperty(_encodeConvertRef,
-                                                kAudioConverterEncodeBitRate,
-                                                targetSize, &bitRate);
-//    log4cplus_info("pcm","set covert property bit rate status:%d",(int)status);
-}
 
 @end
