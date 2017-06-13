@@ -1,11 +1,14 @@
 
-### 本例需求：将Mic采集的PCM转成AAC，可得到两种不同数据,本例采用AudioQueue存储
-### 原理：由于需求更改为Mic采集的pcm一路提供给WebRTC使用，另一路将pcm转为aac，将aac提供给直播用的API。因此应该先让Mic采集原始pcm数据，采用队列保存，然后在回调函数中将其转换为aac提供给C++API
+### 本例需求：将Mic采集的PCM转成AAC，可得到两种不同数据,本例采用AudioQueue存储,即: 可采集到两种声音数据,一种为PCM,一种为转换后的AAC.
+### 原理：由于公司需求更改为Mic采集的pcm一路提供给WebRTC使用，另一路将pcm转为aac，将aac提供给直播用的API。因此应该先让Mic采集原始pcm数据，采用队列保存，然后在回调函数中将其转换为aac提供给C++API
 
 ![Alt text](/img/1.png)
 
+### 本例中仅包含部分代码,建议下载代码详细看,在关键代码中都有注释中可以看到难理解的含义.
+
 ### 源代码地址:[PCM->AAC](https://github.com/ChengyangLi/XDXPCMToAACDemo)
 ### 博客地址:[PCM->AAC](https://chengyangli.github.io/2017/03/24/record)
+### 简书地址:[PCM->AAC](http://www.jianshu.com/p/e2d072b9e4d8)
 
 ## 一.本文需要基本知识点
 
@@ -113,13 +116,25 @@ AudioSessionGetProperty(
 
 ### 调用步骤，首先将项目设置为MRC,在控制器中配置audioSession基本设置(基本设置，不会谷歌)，导入该头文件，直接在需要时机调用该类startRecord与stopRecord方法，另外还提供了生成录音文件的功能，具体参考github中的代码。
 
+```
+本例中涉及的一些宏定义,具体可以下载代码详细看
+#define kBufferDurationSeconds              .5
+#define kXDXRecoderAudioBytesPerPacket      2
+#define kXDXRecoderAACFramesPerPacket       1024
+#define kXDXRecoderPCMTotalPacket           512
+#define kXDXRecoderPCMFramesPerPacket       1
+#define kXDXRecoderConverterEncodeBitRate   64000
+#define kXDXAudioSampleRate                 48000.0
+```
+
 ### 1.设置AudioStreamBasicDescription 基本信息
 ```
--(void)startRecorderTest {
-    // save collect pcm data, 下面一行是本人采用单独设计的队列，大家可以自己定义一个队列存取
-    // XDXSignaling::getInstance()->InitQueue(&collectPcmQueue);
-    // 用特定队列存取pcm的值，在这里初始化，可以采用不同方式进行存储，也可以自己定义一个队列，具体实现不做解释
-    
+-(void)startRecorder {
+    // Reset pcm_buffer to save convert handle, 每次开始音频会话前初始化pcm_buffer, pcm_buffer用来在捕捉声音的回调中存储累加的PCM原始数据
+    memset(pcm_buffer, 0, pcm_buffer_size);
+    pcm_buffer_size = 0;
+    frameCount      = 0;
+
 // 是否正在录制
     if (isRunning) {
         // log4cplus_info("pcm", "Start recorder repeat");
@@ -138,6 +153,19 @@ AudioSessionGetProperty(
     
     // 编码器转码设置
     [self convertBasicSetting];
+    
+    // 这个if语句用来检测是否初始化本例对象成功,如果不成功重启三次,三次后如果失败可以进行其他处理
+    if (err != nil) {
+        NSString *error = nil;
+        for (int i = 0; i < 3; i++) {
+            usleep(100*1000);
+            error = [self convertBasicSetting];
+            if (error == nil) break;
+        }
+        // if init this class failed then restart three times , if failed again,can handle at there
+//        [self exitWithErr:error];
+    }
+
     
     // 新建一个队列,第二个参数注册回调函数，第三个防止内存泄露
     status =  AudioQueueNewInput(&dataFormat, inputBufferHandler, (__bridge void *)(self), NULL, NULL, 0, &mQueue);
@@ -159,8 +187,8 @@ AudioSessionGetProperty(
     
 // 设置三个音频队列缓冲区
     for (int i = 0; i != kNumberQueueBuffers; i++) {
-	// 注意：为每个缓冲区分配大小，由于这里将bufferSize写死所以需要和回调函数对应，否则会出错
-        status = AudioQueueAllocateBuffer(mQueue, 1024*2*dataFormat.mChannelsPerFrame, &mBuffers[i]);
+	// 注意：为每个缓冲区分配大小，可根据具体需求进行修改,但是一定要注意必须满足转换器的需求,转换器只有每次给1024帧数据才会完成一次转换,如果需求为采集数据量较少则用本例提供的pcm_buffer对数据进行累加后再处理
+        status = AudioQueueAllocateBuffer(mQueue, kXDXRecoderPCMTotalPacket*kXDXRecoderAudioBytesPerPacket*dataFormat.mChannelsPerFrame, &mBuffers[i]);
 	// 入队
         status = AudioQueueEnqueueBuffer(mQueue, mBuffers[i], 0, NULL);
     }
@@ -223,7 +251,7 @@ typedef struct AudioStreamBasicDescription  AudioStreamBasicDescription;
 
 ```
  -(void)setUpRecoderWithFormatID:(UInt32)formatID {
-
+	 // Notice : The settings here are official recommended settings,can be changed according to specific requirements. 此处的设置为官方推荐设置,可根据具体需求修改部分设置
     //setup auido sample rate, channel number, and format ID
     memset(&dataFormat, 0, sizeof(dataFormat));
     
@@ -231,7 +259,7 @@ typedef struct AudioStreamBasicDescription  AudioStreamBasicDescription;
     AudioSessionGetProperty(kAudioSessionProperty_CurrentHardwareSampleRate,
                             &size,
                             &dataFormat.mSampleRate);
-    dataFormat.mSampleRate = 44100.0;	// 设置采样率
+    dataFormat.mSampleRate = kXDXAudioSampleRate; // 设置采样率
     
     size = sizeof(dataFormat.mChannelsPerFrame);
     AudioSessionGetProperty(kAudioSessionProperty_CurrentHardwareInputNumberChannels,
@@ -253,7 +281,7 @@ typedef struct AudioStreamBasicDescription  AudioStreamBasicDescription;
         // 8bit为1byte，即为1个通道里1帧需要采集2byte数据，再*通道数，即为所有通道采集的byte数目
         dataFormat.mBytesPerPacket  = dataFormat.mBytesPerFrame = (dataFormat.mBitsPerChannel / 8) * dataFormat.mChannelsPerFrame;
         // 每个包中的帧数，采集PCM数据需要将dataFormat.mFramesPerPacket设置为1，否则回调不成功
-        dataFormat.mFramesPerPacket = 1;
+        dataFormat.mFramesPerPacket = kXDXRecoderPCMFramesPerPacket;
     }
 }
 ```
@@ -261,7 +289,7 @@ typedef struct AudioStreamBasicDescription  AudioStreamBasicDescription;
 ### 3.将PCM转成AAC一些基本设置
 
 ```
--(void)convertBasicSetting {
+-(NSString *)convertBasicSetting {
     // 此处目标格式其他参数均为默认，系统会自动计算，否则无法进入encodeConverterComplexInputDataProc回调
 
     AudioStreamBasicDescription sourceDes = dataFormat; // 原始格式
@@ -270,9 +298,9 @@ typedef struct AudioStreamBasicDescription  AudioStreamBasicDescription;
     // 设置目标格式及基本信息
     memset(&targetDes, 0, sizeof(targetDes));
     targetDes.mFormatID           = kAudioFormatMPEG4AAC;
-    targetDes.mSampleRate         = 44100.0;
+    targetDes.mSampleRate         = kXDXAudioSampleRate;
     targetDes.mChannelsPerFrame   = dataFormat.mChannelsPerFrame;
-    targetDes.mFramesPerPacket    = 1024; // 采集的为AAC需要将targetDes.mFramesPerPacket设置为1024，AAC软编码需要喂给转换器1024个样点才开始编码，这与回调函数中inNumPackets有关，不可随意更改
+    targetDes.mFramesPerPacket    = kXDXRecoderAACFramesPerPacket; // 采集的为AAC需要将targetDes.mFramesPerPacket设置为1024，AAC软编码需要喂给转换器1024个样点才开始编码，这与回调函数中inNumPackets有关，不可随意更改
     
     OSStatus status     = 0;
     UInt32 targetSize   = sizeof(targetDes);
@@ -311,10 +339,23 @@ typedef struct AudioStreamBasicDescription  AudioStreamBasicDescription;
         }
     }
     
+    // 释放转换对象
+        if (_encodeConvertRef != NULL) {
+//        log4cplus_info("Audio Recoder", "release _encodeConvertRef.");
+        AudioConverterDispose(_encodeConvertRef);
+        _encodeConvertRef = NULL;
+    }
+    
     // 新建一个编码对象，设置原，目标格式
     status          = AudioConverterNewSpecific(&sourceDes, &targetDes, 1,
                                                 &audioClassDes, &_encodeConvertRef);
     // log4cplus_info("pcm","new convertRef status:%d",(int)status);
+    
+        // if convert occur error
+    if (status != noErr) {
+//        log4cplus_info("Audio Recoder","new convertRef failed status:%d",(int)status);
+        return @"Error : New convertRef failed";
+    }
     
 // 获取原始格式大小
     targetSize      = sizeof(sourceDes);
@@ -327,12 +368,19 @@ typedef struct AudioStreamBasicDescription  AudioStreamBasicDescription;
     // log4cplus_info("pcm","get targetDes status:%d",(int)status);
     
     // 设置码率，需要和采样率对应
-    UInt32 bitRate  = 64000;
+    UInt32 bitRate  = kXDXRecoderConverterEncodeBitRate;
     targetSize      = sizeof(bitRate);
     status          = AudioConverterSetProperty(_encodeConvertRef,
                                                 kAudioConverterEncodeBitRate,
                                                 targetSize, &bitRate);
     // log4cplus_info("pcm","set covert property bit rate status:%d",(int)status);
+        if (status != noErr) {
+//        log4cplus_info("Audio Recoder","set covert property bit rate status:%d",(int)status);
+        return @"Error : Set covert property bit rate failed";
+    }
+    
+    return nil;
+    
 }
 ```
 
@@ -418,7 +466,7 @@ AudioConverterSetProperty(  AudioConverterRef           inAudioConverter,
 }
 ```
 
-> Magic cookie 是一种不透明的数据格式，它和压缩数据文件与流联系密切，如果文件数据为CBR格式（无损），则不需要添加头部信息，如果为VBR需要添加
+> Magic cookie 是一种不透明的数据格式，它和压缩数据文件与流联系密切，如果文件数据为CBR格式（无损），则不需要添加头部信息，如果为VBR需要添加,// if collect CBR needn't set magic cookie , if collect VBR should set magic cookie, if needn't to convert format that can be setting by audio queue directly.
 
 ### 5.AudioQueue中注册的回调函数
 
@@ -433,27 +481,45 @@ static void inputBufferHandler(void *                                 inUserData
     // 相当于本类对象实例
     TVURecorder *recoder        = (TVURecorder *)inUserData;
     
-    // collect pcm data，可以使用不用方式在此存储pcm原始数据
-    // XDXSignaling::getInstance()->EnQueue(&collectPcmQueue, (const char*)inBuffer->mAudioData, inBuffer->mAudioDataByteSize, KSignalingTypeLogin);
-  
-
-// 将PCM数据转换为AAC
-    AudioBufferList *bufferList = convertPCMToAAC(inBuffer, recoder);
-    // 释放内存，需要按层次释放，不懂请回顾C语言
-    free(bufferList->mBuffers[0].mData);
-    free(bufferList);
-    //begin write audio data for record audio only
+ /*
+     inNumPackets 总包数：音频队列缓冲区大小 （在先前估算缓存区大小为kXDXRecoderAACFramesPerPacket*2）/ （dataFormat.mFramesPerPacket (采集数据每个包中有多少帧，此处在初始化设置中为1) * dataFormat.mBytesPerFrame（每一帧中有多少个字节，此处在初始化设置中为每一帧中两个字节）），所以可以根据该公式计算捕捉PCM数据时inNumPackets。
+     注意：如果采集的数据是PCM需要将dataFormat.mFramesPerPacket设置为1，而本例中最终要的数据为AAC,因为本例中使用的转换器只有每次传入1024帧才能开始工作,所以在AAC格式下需要将mFramesPerPacket设置为1024.也就是采集到的inNumPackets为1，在转换器中传入的inNumPackets应该为AAC格式下默认的1，在此后写入文件中也应该传的是转换好的inNumPackets,如果有特殊需求需要将采集的数据量小于1024,那么需要将每次捕捉到的数据先预先存储在一个buffer中,等到攒够1024帧再进行转换。
+     */
     
-    // 出队
-    AudioQueueRef queue = recoder.mQueue;
-    if (recoder.isRunning) {
-        AudioQueueEnqueueBuffer(queue, inBuffer, 0, NULL);
+    // collect pcm data，可以在此存储
+    
+    // First case : collect data not is 1024 frame, if collect data not is 1024 frame, we need to save data to pcm_buffer untill 1024 frame
+    memcpy(pcm_buffer+pcm_buffer_size, inBuffer->mAudioData, inBuffer->mAudioDataByteSize);
+    pcm_buffer_size = pcm_buffer_size + inBuffer->mAudioDataByteSize;
+    if(inBuffer->mAudioDataByteSize != kXDXRecoderAACFramesPerPacket*2)
+        NSLog(@"write pcm buffer size:%d, totoal buff size:%d", inBuffer->mAudioDataByteSize, pcm_buffer_size);
+
+    frameCount++;
+    
+     // Second case : If the size of the data collection is not required, we can let mic collect 1024 frame so that don't need to write firtst case, but it is recommended to write the above code because of agility 
+
+    // if collect data is added to 1024 frame
+    if(frameCount == totalFrames) {
+        AudioBufferList *bufferList = convertPCMToAAC(recoder);
+        pcm_buffer_size = 0;
+        frameCount      = 0;
+        
+        // free memory
+        free(bufferList->mBuffers[0].mData);
+        free(bufferList);
+        // begin write audio data for record audio only
+        
+        // 出队
+        AudioQueueRef queue = recoder.mQueue;
+        if (recoder.isRunning) {
+            AudioQueueEnqueueBuffer(queue, inBuffer, 0, NULL);
+        }
     }
 }
 ```
 > 解析回调函数：相当于中断服务函数，每次录取到音频数据就进入这个函数  
 
-  注意：inNumPackets 总包数：音频队列缓冲区大小 （在先前估算缓存区大小为2048）/ （dataFormat.mFramesPerPacket (采集数据每个包中有多少帧，此处在初始化设置中为1) * dataFormat.mBytesPerFrame（每一帧中有多少个字节，此处在初始化设置中为每一帧中两个字节）），所以用捕捉PCM数据时inNumPackets为1024。如果采集的数据是PCM需要将dataFormat.mFramesPerPacket设置为1，而本例中最终要的数据为AAC,在AAC格式下需要将mFramesPerPacket设置为1024.也就是采集到的inNumPackets为1，所以inNumPackets这个参数在此处可以忽略，因为在转换器中传入的inNumPackets应该为AAC格式下默认的1，在此后写入文件中也应该传的是转换好的inNumPackets。
+  注意：inNumPackets 总包数：音频队列缓冲区大小 （在先前估算缓存区大小为2048）/ （dataFormat.mFramesPerPacket (采集数据每个包中有多少帧，此处在初始化设置中为1) * dataFormat.mBytesPerFrame（每一帧中有多少个字节，此处在初始化设置中为每一帧中两个字节））
 
 - inAQ 是调用回调函数的音频队列  
 - inBuffer 是一个被音频队列填充新的音频数据的音频队列缓冲区，它包含了回调函数写入文件所需要的新数据  
@@ -479,27 +545,24 @@ AudioBufferList* convertPCMToAAC (AudioQueueBufferRef inBuffer, XDXRecorder *rec
     bufferList->mNumberBuffers              = 1;
     bufferList->mBuffers[0].mNumberChannels = _targetDes.mChannelsPerFrame;
     bufferList->mBuffers[0].mData           = malloc(maxPacketSize);
-    bufferList->mBuffers[0].mDataByteSize   = inBuffer->mAudioDataByteSize;
+    bufferList->mBuffers[0].mDataByteSize   = pcm_buffer_size;
 
     AudioStreamPacketDescription outputPacketDescriptions;
     
-    /* inNumPackets设置为1表示编码产生1帧数据即返回，官方：On entry, the capacity of 
-	outOutputData expressed in packets in the converter's output format. On exit,
-	 the number of packets of converted data that were written to outOutputData.
-	  在输入表示输出数据的最大容纳能力 在转换器的输出格式上，在转换完成时表示多少个包被写入
+    /*     
+    inNumPackets设置为1表示编码产生1帧数据即返回，官方：On entry, the capacity of outOutputData expressed in packets in the converter's output format. On exit, the number of packets of converted data that were written to outOutputData. 在输入表示输出数据的最大容纳能力 在转换器的输出格式上，在转换完成时表示多少个包被写入
 	*/
     UInt32 inNumPackets = 1;
     status = AudioConverterFillComplexBuffer(_encodeConvertRef,
                                              encodeConverterComplexInputDataProc,	// 填充数据的回调函数
-                                             inBuffer->mAudioData,		// 音频队列缓冲区中数据
+                                             pcm_buffer,		// 音频队列缓冲区中数据
                                              &inNumPackets,		
                                              bufferList,			// 成功后将值赋给bufferList
                                              &outputPacketDescriptions);	// 输出包包含的一些信息
     log4cplus_info("AudioConverter","set AudioConverterFillComplexBuffer status:%d",(int)status);
     
-    if (recoder.needsVoiceDemo)
-    {
-	     // if inNumPackets set not correct, file will not normally play. 将转换器转换出来的包写入文件中，inNumPackets表示写入文件的起始位置
+    if (recoder.needsVoiceDemo) {
+        // if inNumPackets set not correct, file will not normally play. 将转换器转换出来的包写入文件中，inNumPackets表示写入文件的起始位置
         OSStatus status = AudioFileWritePackets(recoder.mRecordFile,
                                                 FALSE,
                                                 bufferList->mBuffers[0].mDataByteSize,
@@ -507,12 +570,10 @@ AudioBufferList* convertPCMToAAC (AudioQueueBufferRef inBuffer, XDXRecorder *rec
                                                 recoder.mRecordPacket,
                                                 &inNumPackets,
                                                 bufferList->mBuffers[0].mData);
-        // log4cplus_info("write file","write file status = %d",(int)status);
-        if (status == noErr) {
-            recoder.mRecordPacket += inNumPackets;  // 用于记录起始位置
-        }
+//        log4cplus_info("write file","write file status = %d",(int)status);
+        recoder.mRecordPacket += inNumPackets;  // Used to record the location of the write file,用于记录写入文件的位置
     }
-
+    
     return bufferList;
 }
 ```

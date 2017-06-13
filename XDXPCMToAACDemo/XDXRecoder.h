@@ -2,7 +2,7 @@
 //  XDXRecoder.h
 //  XDXPCMToAACDemo
 //
-//  Created by demon on 23/03/2017.
+//  Created by 小东邪 on 23/03/2017.
 //
 //
 
@@ -59,6 +59,5 @@
 
 -(void)startVoiceDemo;
 -(void)stopVoiceDemo;
--(void)startRecorder;
 
 @end
