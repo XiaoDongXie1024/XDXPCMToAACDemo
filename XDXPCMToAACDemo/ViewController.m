@@ -23,7 +23,19 @@
     // Do any additional setup after loading the view, typically from a nib.
     
     [self configureAudio];
-    [self.liveRecorder startRecorder];
+//    [self.liveRecorder startRecorder];
+    /*
+        注意，本例中XDXRecorder中分别用AudioQueue与AudioUnit实现了录音，区别好处在博客简书中均有介绍，在此不再重复，请根据需要选择。
+     */
+    
+    
+    
+    if (self.liveRecorder.releaseMethod == XDXRecorderReleaseMethodAudioUnit) {
+        [self.liveRecorder startAudioUnitRecorder];
+    }else if (self.liveRecorder.releaseMethod == XDXRecorderReleaseMethodAudioQueue) {
+        [self.liveRecorder startAudioQueueRecorder];
+    }
+    
 }
 
 
@@ -40,6 +52,12 @@
     NSError* error;
     
     success = [audioSession setCategory:AVAudioSessionCategoryPlayAndRecord withOptions:AVAudioSessionCategoryOptionDefaultToSpeaker|AVAudioSessionCategoryOptionAllowBluetooth|AVAudioSessionCategoryOptionMixWithOthers error:&error];
+    
+    if (self.liveRecorder.releaseMethod == XDXRecorderReleaseMethodAudioUnit) {
+        [audioSession setCategory:AVAudioSessionCategoryPlayAndRecord withOptions:AVAudioSessionCategoryOptionAllowBluetooth|AVAudioSessionCategoryOptionMixWithOthers error:&error];
+        [audioSession setPreferredIOBufferDuration:0.01 error:&error]; // 10ms采集一次
+        [audioSession setPreferredSampleRate:48000 error:&error];  // 需和XDXRecorder中对应
+    }
     
     //set USB AUDIO device as high priority: iRig mic HD
     for (AVAudioSessionPortDescription *inputPort in [audioSession availableInputs])

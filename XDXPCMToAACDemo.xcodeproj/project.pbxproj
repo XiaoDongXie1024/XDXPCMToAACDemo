@@ -216,6 +216,7 @@
 				TargetAttributes = {
 					641B54041E83CCC4008DDB61 = {
 						CreatedOnToolsVersion = 8.2.1;
+						DevelopmentTeam = YDEVQQ22JR;
 						ProvisioningStyle = Automatic;
 					};
 					641B541D1E83CCC4008DDB61 = {
@@ -436,7 +437,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_ENABLE_OBJC_ARC = NO;
-				DEVELOPMENT_TEAM = "";
+				DEVELOPMENT_TEAM = YDEVQQ22JR;
 				INFOPLIST_FILE = XDXPCMToAACDemo/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks";
 				PRODUCT_BUNDLE_IDENTIFIER = com.xdx.XDXPCMToAACDemo.XDXPCMToAACDemo;
@@ -449,7 +450,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_ENABLE_OBJC_ARC = NO;
-				DEVELOPMENT_TEAM = "";
+				DEVELOPMENT_TEAM = YDEVQQ22JR;
 				INFOPLIST_FILE = XDXPCMToAACDemo/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks";
 				PRODUCT_BUNDLE_IDENTIFIER = com.xdx.XDXPCMToAACDemo.XDXPCMToAACDemo;
@@ -522,6 +523,7 @@
 				641B54341E83CCC4008DDB61 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
 		};
 		641B54351E83CCC4008DDB61 /* Build configuration list for PBXNativeTarget "XDXPCMToAACDemoTests" */ = {
 			isa = XCConfigurationList;
@@ -530,6 +532,7 @@
 				641B54371E83CCC4008DDB61 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
 		};
 		641B54381E83CCC4008DDB61 /* Build configuration list for PBXNativeTarget "XDXPCMToAACDemoUITests" */ = {
 			isa = XCConfigurationList;
@@ -538,6 +541,7 @@
 				641B543A1E83CCC4008DDB61 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
 	};

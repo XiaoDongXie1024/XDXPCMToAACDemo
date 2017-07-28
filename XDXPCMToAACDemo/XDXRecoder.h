@@ -11,6 +11,11 @@
 
 #define kNumberQueueBuffers 3
 
+typedef NS_ENUM(NSInteger, XDXRecorderReleaseMethod) {
+    XDXRecorderReleaseMethodAudioUnit,
+    XDXRecorderReleaseMethodAudioQueue,
+};
+
 @class XDXRecorder;
 
 @protocol XDXRecoderDelegate
@@ -21,15 +26,11 @@
 
 @interface XDXRecorder : NSObject
 {
-    AudioStreamBasicDescription     dataFormat;
-    AudioQueueRef                   mQueue;
-    AudioQueueBufferRef             mBuffers[kNumberQueueBuffers];
     
+    AudioStreamBasicDescription     dataFormat;
+
     BOOL                            isRunning;
     UInt64                          startTime;
-//    id<XDXRecoderDelegate>          delegate;
-    NSString *                      rawFilePath;
-    
     Float64                         hostTime;
     
     //state for voice memo
@@ -37,6 +38,15 @@
     AudioFileID                     mRecordFile;
     SInt64                          mRecordPacket;      // current packet number in record file
     BOOL                            mNeedsVoiceDemo;
+    
+    // AudioQueue
+    AudioQueueRef                   mQueue;
+    AudioQueueBufferRef             mBuffers[kNumberQueueBuffers];
+    
+    // AudioUnit
+    @public
+    AudioUnit                        _audioUnit;
+    AudioBufferList                 *_buffList;
 }
 
 @property (nonatomic ,assign)       id<XDXRecoderDelegate>          delegate;
@@ -52,12 +62,23 @@
 @property (nonatomic ,assign)       SInt64                          mRecordPacket;
 @property (readonly)                BOOL                            needsVoiceDemo;
 
+// 区分使用AudioQueue或AudioUnit
+@property (nonatomic, assign)       XDXRecorderReleaseMethod        releaseMethod;
+
 -(id)initWithFormatID:(UInt32)formatID;
--(void)startRecorder;
--(void)stopRecorder;
 -(BOOL)isRunning;
 
 -(void)startVoiceDemo;
 -(void)stopVoiceDemo;
+
+
+// AudioQueue
+- (void)startAudioQueueRecorder;
+- (void)stopAudioQueueRecorder;
+
+
+// AudioUnit
+- (void)startAudioUnitRecorder;
+- (void)stopAudioUnitRecorder;
 
 @end
