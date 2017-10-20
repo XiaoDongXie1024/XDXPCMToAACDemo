@@ -1,14 +1,19 @@
-<?xml version="1.0" encoding="UTF-8" standalone="no"?>
-<document type="com.apple.InterfaceBuilder3.CocoaTouch.Storyboard.XIB" version="3.0" toolsVersion="11134" systemVersion="15F34" targetRuntime="iOS.CocoaTouch" propertyAccessControl="none" useAutolayout="YES" useTraitCollections="YES" colorMatched="YES" initialViewController="BYZ-38-t0r">
+<?xml version="1.0" encoding="UTF-8"?>
+<document type="com.apple.InterfaceBuilder3.CocoaTouch.Storyboard.XIB" version="3.0" toolsVersion="13196" targetRuntime="iOS.CocoaTouch" propertyAccessControl="none" useAutolayout="YES" useTraitCollections="YES" colorMatched="YES" initialViewController="BYZ-38-t0r">
+    <device id="retina4_7" orientation="portrait">
+        <adaptation id="fullscreen"/>
+    </device>
     <dependencies>
-        <plugIn identifier="com.apple.InterfaceBuilder.IBCocoaTouchPlugin" version="11106"/>
+        <deployment identifier="iOS"/>
+        <plugIn identifier="com.apple.InterfaceBuilder.IBCocoaTouchPlugin" version="13173"/>
+        <capability name="Constraints to layout margins" minToolsVersion="6.0"/>
         <capability name="documents saved in the Xcode 8 format" minToolsVersion="8.0"/>
     </dependencies>
     <scenes>
         <!--View Controller-->
         <scene sceneID="tne-QT-ifu">
             <objects>
-                <viewController id="BYZ-38-t0r" customClass="ViewController" customModuleProvider="" sceneMemberID="viewController">
+                <viewController id="BYZ-38-t0r" customClass="ViewController" sceneMemberID="viewController">
                     <layoutGuides>
                         <viewControllerLayoutGuide type="top" id="y3c-jy-aDJ"/>
                         <viewControllerLayoutGuide type="bottom" id="wfy-db-euE"/>
@@ -16,11 +21,74 @@
                     <view key="view" contentMode="scaleToFill" id="8bC-Xf-vdC">
                         <rect key="frame" x="0.0" y="0.0" width="375" height="667"/>
                         <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
+                        <subviews>
+                            <imageView userInteractionEnabled="NO" contentMode="scaleToFill" horizontalHuggingPriority="251" verticalHuggingPriority="251" image="bg-2" translatesAutoresizingMaskIntoConstraints="NO" id="MvJ-2r-uJp">
+                                <rect key="frame" x="0.0" y="0.0" width="375" height="667"/>
+                            </imageView>
+                            <button opaque="NO" contentMode="scaleToFill" contentHorizontalAlignment="center" contentVerticalAlignment="center" buttonType="roundedRect" lineBreakMode="middleTruncation" translatesAutoresizingMaskIntoConstraints="NO" id="qxa-zs-QPK">
+                                <rect key="frame" x="78" y="246" width="80" height="80"/>
+                                <color key="backgroundColor" red="0.20000000000000001" green="0.20000000000000001" blue="0.20000000000000001" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
+                                <constraints>
+                                    <constraint firstAttribute="height" constant="80" id="D0E-OQ-h6X"/>
+                                    <constraint firstAttribute="width" constant="80" id="lIS-V6-8Cx"/>
+                                </constraints>
+                                <state key="normal" title="Start">
+                                    <color key="titleColor" white="1" alpha="1" colorSpace="calibratedWhite"/>
+                                </state>
+                                <connections>
+                                    <action selector="startAudio:" destination="BYZ-38-t0r" eventType="touchUpInside" id="wCO-fw-ASu"/>
+                                </connections>
+                            </button>
+                            <button opaque="NO" contentMode="scaleToFill" contentHorizontalAlignment="center" contentVerticalAlignment="center" buttonType="roundedRect" lineBreakMode="middleTruncation" translatesAutoresizingMaskIntoConstraints="NO" id="cQy-xS-evx">
+                                <rect key="frame" x="231" y="246" width="80" height="80"/>
+                                <color key="backgroundColor" red="0.20000000000000001" green="0.20000000000000001" blue="0.20000000000000001" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
+                                <constraints>
+                                    <constraint firstAttribute="width" constant="80" id="PhS-Mx-7rV"/>
+                                </constraints>
+                                <state key="normal" title="End">
+                                    <color key="titleColor" white="1" alpha="1" colorSpace="calibratedWhite"/>
+                                </state>
+                                <connections>
+                                    <action selector="endAudio:" destination="BYZ-38-t0r" eventType="touchUpInside" id="kO8-XL-Qze"/>
+                                </connections>
+                            </button>
+                            <label opaque="NO" userInteractionEnabled="NO" contentMode="left" horizontalHuggingPriority="251" verticalHuggingPriority="251" text="   You need to make a breakpoint in callback" textAlignment="natural" lineBreakMode="tailTruncation" baselineAdjustment="alignBaselines" adjustsFontSizeToFit="NO" translatesAutoresizingMaskIntoConstraints="NO" id="5Jj-ic-6Lk">
+                                <rect key="frame" x="16" y="409" width="343" height="49"/>
+                                <color key="backgroundColor" red="0.20000000000000001" green="0.20000000000000001" blue="0.20000000000000001" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
+                                <constraints>
+                                    <constraint firstAttribute="width" constant="343" id="SkR-h1-7fx"/>
+                                    <constraint firstAttribute="height" constant="49" id="SnN-dL-UBF"/>
+                                </constraints>
+                                <fontDescription key="fontDescription" type="system" pointSize="17"/>
+                                <color key="textColor" white="1" alpha="1" colorSpace="calibratedWhite"/>
+                                <nil key="highlightedColor"/>
+                            </label>
+                        </subviews>
                         <color key="backgroundColor" red="1" green="1" blue="1" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
+                        <constraints>
+                            <constraint firstItem="cQy-xS-evx" firstAttribute="top" secondItem="qxa-zs-QPK" secondAttribute="top" id="848-aa-H8C"/>
+                            <constraint firstItem="MvJ-2r-uJp" firstAttribute="top" secondItem="8bC-Xf-vdC" secondAttribute="top" id="8Ls-e8-nSc"/>
+                            <constraint firstItem="5Jj-ic-6Lk" firstAttribute="leading" secondItem="8bC-Xf-vdC" secondAttribute="leadingMargin" id="Aac-al-HWo"/>
+                            <constraint firstItem="cQy-xS-evx" firstAttribute="bottom" secondItem="qxa-zs-QPK" secondAttribute="bottom" id="Abr-Ec-qSa"/>
+                            <constraint firstAttribute="trailingMargin" secondItem="cQy-xS-evx" secondAttribute="trailing" constant="48" id="HQr-yS-ASn"/>
+                            <constraint firstItem="qxa-zs-QPK" firstAttribute="top" secondItem="y3c-jy-aDJ" secondAttribute="bottom" constant="226" id="IsL-Td-tuY"/>
+                            <constraint firstItem="MvJ-2r-uJp" firstAttribute="leading" secondItem="8bC-Xf-vdC" secondAttribute="leading" id="RCz-Ep-8Va"/>
+                            <constraint firstItem="MvJ-2r-uJp" firstAttribute="centerY" secondItem="8bC-Xf-vdC" secondAttribute="centerY" id="RPR-kh-SA8"/>
+                            <constraint firstItem="qxa-zs-QPK" firstAttribute="leading" secondItem="8bC-Xf-vdC" secondAttribute="leadingMargin" constant="62" id="T9i-nw-sb9"/>
+                            <constraint firstItem="5Jj-ic-6Lk" firstAttribute="centerY" secondItem="8bC-Xf-vdC" secondAttribute="centerY" constant="100" id="Tke-Yk-X3p"/>
+                            <constraint firstAttribute="trailing" secondItem="MvJ-2r-uJp" secondAttribute="trailing" id="ama-Lc-09z"/>
+                            <constraint firstAttribute="trailingMargin" secondItem="5Jj-ic-6Lk" secondAttribute="trailing" id="dBQ-qv-Zhm"/>
+                            <constraint firstAttribute="bottom" secondItem="MvJ-2r-uJp" secondAttribute="bottom" id="fY2-ua-Unz"/>
+                            <constraint firstItem="MvJ-2r-uJp" firstAttribute="centerX" secondItem="8bC-Xf-vdC" secondAttribute="centerX" id="vDG-yo-Nap"/>
+                        </constraints>
                     </view>
                 </viewController>
                 <placeholder placeholderIdentifier="IBFirstResponder" id="dkx-z0-nzr" sceneMemberID="firstResponder"/>
             </objects>
+            <point key="canvasLocation" x="117.59999999999999" y="117.39130434782609"/>
         </scene>
     </scenes>
+    <resources>
+        <image name="bg-2" width="750" height="730"/>
+    </resources>
 </document>

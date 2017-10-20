@@ -23,18 +23,14 @@
     // Do any additional setup after loading the view, typically from a nib.
     
     [self configureAudio];
-//    [self.liveRecorder startRecorder];
     /*
         注意，本例中XDXRecorder中分别用AudioQueue与AudioUnit实现了录音，区别好处在博客简书中均有介绍，在此不再重复，请根据需要选择。
      */
     
+    self.liveRecorder = [[XDXRecorder alloc] init];
     
-    
-    if (self.liveRecorder.releaseMethod == XDXRecorderReleaseMethodAudioUnit) {
-        [self.liveRecorder startAudioUnitRecorder];
-    }else if (self.liveRecorder.releaseMethod == XDXRecorderReleaseMethodAudioQueue) {
-        [self.liveRecorder startAudioQueueRecorder];
-    }
+#warning You need select use Audio Unit or Audio Queue
+    self.liveRecorder.releaseMethod = XDXRecorderReleaseMethodAudioQueue;
     
 }
 
@@ -91,6 +87,29 @@
     
 }
 
+- (void)audioRouteChanged:(NSNotification*)notify {
+    NSDictionary *dic = notify.userInfo;
+    AVAudioSessionRouteDescription *currentRoute = [[AVAudioSession sharedInstance] currentRoute];
+    AVAudioSessionRouteDescription *oldRoute = [dic objectForKey:AVAudioSessionRouteChangePreviousRouteKey];
+    NSNumber *routeChangeReason = [dic objectForKey:AVAudioSessionRouteChangeReasonKey];
+    NSLog(@"audio route changed: reason: %@\n input:%@->%@, output:%@->%@",routeChangeReason,oldRoute.inputs,currentRoute.inputs,oldRoute.outputs,currentRoute.outputs);
 
+}
+
+- (IBAction)startAudio:(id)sender {
+    if (self.liveRecorder.releaseMethod == XDXRecorderReleaseMethodAudioUnit) {
+        [self.liveRecorder startAudioUnitRecorder];
+    }else if (self.liveRecorder.releaseMethod == XDXRecorderReleaseMethodAudioQueue) {
+        [self.liveRecorder startAudioQueueRecorder];
+    }
+}
+
+- (IBAction)endAudio:(id)sender {
+    if (self.liveRecorder.releaseMethod == XDXRecorderReleaseMethodAudioUnit) {
+        [self.liveRecorder stopAudioUnitRecorder];
+    }else if (self.liveRecorder.releaseMethod == XDXRecorderReleaseMethodAudioQueue) {
+        [self.liveRecorder stopAudioQueueRecorder];
+    }
+}
 
 @end

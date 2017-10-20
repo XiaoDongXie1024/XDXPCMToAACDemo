@@ -290,7 +290,7 @@ static void inputBufferHandler(void *                                 inUserData
     if (formatID == kAudioFormatLinearPCM) {
         if (self.releaseMethod == XDXRecorderReleaseMethodAudioQueue) {
             dataFormat.mFormatFlags     = kLinearPCMFormatFlagIsSignedInteger | kLinearPCMFormatFlagIsPacked;
-        }else if (self.releaseMethod == XDXRecorderReleaseMethodAudioQueue) {
+        }else if (self.releaseMethod == XDXRecorderReleaseMethodAudioUnit) {
             dataFormat.mFormatFlags     = kAudioFormatFlagIsSignedInteger | kAudioFormatFlagIsPacked;
         }
         
@@ -489,16 +489,17 @@ static void inputBufferHandler(void *                                 inUserData
 
 #pragma mark - Audio Queue
 -(void)startAudioQueueRecorder {
-    // Reset pcm_buffer to save convert handle
-    memset(pcm_buffer, 0, pcm_buffer_size);
-    pcm_buffer_size = 0;
-    
     if (isRunning) {
 //        log4cplus_info("pcm", "Start recorder repeat");
+        NSLog(@"Start recorder repeat");
         return;
     }
     
+    // Reset pcm_buffer to save convert handle
+    memset(pcm_buffer, 0, pcm_buffer_size);
+    pcm_buffer_size = 0;
 //    log4cplus_info("pcm", "starup PCM audio encoder");
+    NSLog(@"starup PCM audio encoder");
     
     [self setUpRecoderWithFormatID:kAudioFormatLinearPCM];
     
@@ -519,13 +520,16 @@ static void inputBufferHandler(void *                                 inUserData
     }
     
     status =  AudioQueueNewInput(&dataFormat, inputBufferHandler, (__bridge void *)(self), NULL, NULL, 0, &mQueue);
+    NSLog(@"AudioQueueNewInput status:%d",(int)status);
 //    log4cplus_info("pcm","AudioQueueNewInput status:%d",(int)status);
     if (status != noErr) {
 //        log4cplus_error("Audio Recoder","AudioQueueNewInput Failed status:%d",(int)status);
+        NSLog(@"AudioQueueNewInput Failed status:%d",(int)status);
     }
     
     status = AudioQueueGetProperty(mQueue, kAudioQueueProperty_StreamDescription, &dataFormat, &size);
 //    log4cplus_info("pcm","AudioQueueNewInput status:%u",(unsigned int)dataFormat.mFormatID);
+    NSLog(@"AudioQueueNewInput status:%u",(unsigned int)dataFormat.mFormatID);
     
     [self copyEncoderCookieToFile];
     
@@ -546,6 +550,7 @@ static void inputBufferHandler(void *                                 inUserData
     
     status     =  AudioQueueStart(mQueue, NULL);
 //    log4cplus_info("pcm","AudioQueueStart status:%d",(int)status);
+    NSLog(@"AudioQueueStart status:%d",(int)status);
 }
 
 -(void)stopAudioQueueRecorder {
@@ -589,6 +594,7 @@ static void inputBufferHandler(void *                                 inUserData
     
     if (isRunning) {
 //        log4cplus_info("Audio Recoder", "Start recorder repeat \n");
+        NSLog(@"Start Audio Unit recorder repeat");
         return;
     }
     
@@ -598,6 +604,8 @@ static void inputBufferHandler(void *                                 inUserData
     
     status = AudioOutputUnitStart(_audioUnit);
 //    log4cplus_info("Audio Recoder", "AudioOutputUnitStart status : %d \n",status);
+    NSLog(@"AudioOutputUnitStart status : %d \n",status);
+    
     if (status == noErr) {
         isRunning  = YES;
         hostTime   = 0;
@@ -641,6 +649,7 @@ static void inputBufferHandler(void *                                 inUserData
                                            sizeof(flag));
     if (status != noErr) {
 //        log4cplus_info("Audio Recoder", "couldn't AllocateBuffer of AudioUnitCallBack, status : %d \n",status);
+        NSLog(@"couldn't AllocateBuffer of AudioUnitCallBack, status : %d \n",status);
     }
     _buffList = (AudioBufferList*)malloc(sizeof(AudioBufferList));
     _buffList->mNumberBuffers               = 1;
@@ -667,6 +676,7 @@ static void inputBufferHandler(void *                                 inUserData
     if (status != noErr)  {
         _audioUnit = NULL;
 //        log4cplus_info("Audio Recoder", "couldn't create a new instance of AURemoteIO, status : %d \n",status);
+        NSLog(@"couldn't create a new instance of AURemoteIO, status : %d \n",status);
     }
 }
 
@@ -684,6 +694,7 @@ static void inputBufferHandler(void *                                 inUserData
                                   sizeof(dataFormat));
     if (status != noErr) {
 //        log4cplus_info("Audio Recoder", "couldn't set the input client format on AURemoteIO, status : %d \n",status);
+        NSLog(@"couldn't set the input client format on AURemoteIO, status : %d \n",status);
     }
     // 去除回声开关
     UInt32 echoCancellation;
@@ -704,6 +715,7 @@ static void inputBufferHandler(void *                                 inUserData
                                        sizeof(flag));
     if (status != noErr) {
 //        log4cplus_info("Audio Recoder", "could not enable input on AURemoteIO, status : %d \n",status);
+        NSLog(@"could not enable input on AURemoteIO, status : %d \n",status);
     }
 }
 
@@ -721,6 +733,7 @@ static void inputBufferHandler(void *                                 inUserData
     
     if (status != noErr) {
 //        log4cplus_info("Audio Recoder", "Audio Unit set record Callback failed, status : %d \n",status);
+        NSLog(@"Audio Unit set record Callback failed, status : %d \n",status);
     }
 }
 
