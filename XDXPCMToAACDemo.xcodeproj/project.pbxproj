@@ -17,6 +17,7 @@
 		641B542E1E83CCC4008DDB61 /* XDXPCMToAACDemoUITests.m in Sources */ = {isa = PBXBuildFile; fileRef = 641B542D1E83CCC4008DDB61 /* XDXPCMToAACDemoUITests.m */; };
 		641B54401E83CD81008DDB61 /* XDXRecoder.mm in Sources */ = {isa = PBXBuildFile; fileRef = 641B543F1E83CD81008DDB61 /* XDXRecoder.mm */; };
 		641B54431E83D1E0008DDB61 /* XDXDateTool.m in Sources */ = {isa = PBXBuildFile; fileRef = 641B54421E83D1E0008DDB61 /* XDXDateTool.m */; };
+		643B895D1FBED0B300205594 /* XDXVolumeView.m in Sources */ = {isa = PBXBuildFile; fileRef = 643B895C1FBED0B300205594 /* XDXVolumeView.m */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -57,6 +58,8 @@
 		641B543F1E83CD81008DDB61 /* XDXRecoder.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; path = XDXRecoder.mm; sourceTree = "<group>"; };
 		641B54411E83D1E0008DDB61 /* XDXDateTool.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = XDXDateTool.h; sourceTree = "<group>"; };
 		641B54421E83D1E0008DDB61 /* XDXDateTool.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = XDXDateTool.m; sourceTree = "<group>"; };
+		643B895B1FBED0B300205594 /* XDXVolumeView.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = XDXVolumeView.h; sourceTree = "<group>"; };
+		643B895C1FBED0B300205594 /* XDXVolumeView.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = XDXVolumeView.m; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -107,6 +110,7 @@
 		641B54071E83CCC4008DDB61 /* XDXPCMToAACDemo */ = {
 			isa = PBXGroup;
 			children = (
+				643B895A1FBED0AB00205594 /* XDXVolumeView */,
 				641B54411E83D1E0008DDB61 /* XDXDateTool.h */,
 				641B54421E83D1E0008DDB61 /* XDXDateTool.m */,
 				641B540B1E83CCC4008DDB61 /* AppDelegate.h */,
@@ -148,6 +152,15 @@
 				641B542F1E83CCC4008DDB61 /* Info.plist */,
 			);
 			path = XDXPCMToAACDemoUITests;
+			sourceTree = "<group>";
+		};
+		643B895A1FBED0AB00205594 /* XDXVolumeView */ = {
+			isa = PBXGroup;
+			children = (
+				643B895B1FBED0B300205594 /* XDXVolumeView.h */,
+				643B895C1FBED0B300205594 /* XDXVolumeView.m */,
+			);
+			path = XDXVolumeView;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -286,6 +299,7 @@
 				641B54431E83D1E0008DDB61 /* XDXDateTool.m in Sources */,
 				641B54101E83CCC4008DDB61 /* ViewController.m in Sources */,
 				641B540D1E83CCC4008DDB61 /* AppDelegate.m in Sources */,
+				643B895D1FBED0B300205594 /* XDXVolumeView.m in Sources */,
 				641B540A1E83CCC4008DDB61 /* main.m in Sources */,
 				641B54401E83CD81008DDB61 /* XDXRecoder.mm in Sources */,
 			);

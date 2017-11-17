@@ -59,6 +59,75 @@ static uint8_t      pcm_buffer[kTVURecoderPCMMaxBuffSize*2];
 static int          catchCount = 0;
 static float        firstTime  = 0;
 
+#pragma mark Calculate DB
+enum ChannelCount
+{
+    k_Mono = 1,
+    k_Stereo
+};
+
+void caculate_bm_db(void * const data ,size_t length ,int64_t timestamp, ChannelCount channelModel,float channelValue[2],bool isAudioUnit) {
+    int16_t *audioData = (int16_t *)data;
+    
+    if (channelModel == k_Mono) {
+        int     sDbChnnel     = 0;
+        int16_t curr          = 0;
+        int16_t max           = 0;
+        size_t traversalTimes = 0;
+        
+        if (isAudioUnit) {
+            traversalTimes = length/2;// 由于512后面的数据显示异常  需要全部忽略掉
+        }else{
+            traversalTimes = length;
+        }
+        
+        for(int i = 0; i< traversalTimes; i++) {
+            curr = *(audioData+i);
+            if(curr > max) max = curr;
+        }
+        
+        if(max < 1) {
+            sDbChnnel = -100;
+        }else {
+            sDbChnnel = (20*log10((0.0 + max)/32767) - 0.5);
+        }
+        
+        channelValue[0] = channelValue[1] = sDbChnnel;
+        
+    } else if (channelModel == k_Stereo){
+        int sDbChA = 0;
+        int sDbChB = 0;
+        
+        int16_t nCurr[2] = {0};
+        int16_t nMax[2] = {0};
+        
+        for(unsigned int i=0; i<length/2; i++) {
+            nCurr[0] = audioData[i];
+            nCurr[1] = audioData[i + 1];
+            
+            if(nMax[0] < nCurr[0]) nMax[0] = nCurr[0];
+            
+            if(nMax[1] < nCurr[1]) nMax[1] = nCurr[0];
+        }
+        
+        if(nMax[0] < 1) {
+            sDbChA = -100;
+        } else {
+            sDbChA = (20*log10((0.0 + nMax[0])/32767) - 0.5);
+        }
+        
+        if(nMax[1] < 1) {
+            sDbChB = -100;
+        } else {
+            sDbChB = (20*log10((0.0 + nMax[1])/32767) - 0.5);
+        }
+        
+        channelValue[0] = sDbChA;
+        channelValue[1] = sDbChB;
+    }
+}
+
+
 #pragma mark ---------------------------------- CallBack : collect pcm and  convert  -------------------------------------
 OSStatus encodeConverterComplexInputDataProc(AudioConverterRef              inAudioConverter,
                                              UInt32                         *ioNumberDataPackets,
@@ -150,6 +219,12 @@ static OSStatus RecordCallback(void *inRefCon,
     UInt32   bufferSize = recorder->_buffList->mBuffers[0].mDataByteSize;
     //    printf("Audio Recoder Render dataSize : %d \n",bufferSize);
     
+    float channelValue[2];
+    caculate_bm_db(bufferData, bufferSize, 0, k_Mono, channelValue,true);
+    recorder.volLDB = channelValue[0];
+    recorder.volRDB = channelValue[1];
+//    log4cplus_info("Audio Recorder", "demonVol - %f \n",channelValue[0]);
+    
     // 由于PCM转成AAC的转换器每次需要有1024个采样点（每一帧2个字节）才能完成一次转换，所以每次需要2048大小的数据，这里定义的pcm_buffer用来累加每次存储的bufferData
     memcpy(pcm_buffer+pcm_buffer_size, bufferData, bufferSize);
     pcm_buffer_size = pcm_buffer_size + bufferSize;
@@ -184,8 +259,13 @@ static void inputBufferHandler(void *                                 inUserData
      注意：如果采集的数据是PCM需要将dataFormat.mFramesPerPacket设置为1，而本例中最终要的数据为AAC,因为本例中使用的转换器只有每次传入1024帧才能开始工作,所以在AAC格式下需要将mFramesPerPacket设置为1024.也就是采集到的inNumPackets为1，在转换器中传入的inNumPackets应该为AAC格式下默认的1，在此后写入文件中也应该传的是转换好的inNumPackets,如果有特殊需求需要将采集的数据量小于1024,那么需要将每次捕捉到的数据先预先存储在一个buffer中,等到攒够1024帧再进行转换。
      */
     
-    // collect pcm data，可以在此存储
+    // Get DB
+    float channelValue[2];
+    caculate_bm_db(inBuffer->mAudioData, inBuffer->mAudioDataByteSize, 0, k_Mono, channelValue,true);
+    recoder.volLDB = channelValue[0];
+    recoder.volRDB = channelValue[1];
     
+    // collect pcm data，可以在此存储
     // 由于PCM转成AAC的转换器每次需要有1024个采样点（每一帧2个字节）才能完成一次转换，所以每次需要2048大小的数据，这里定义的pcm_buffer用来累加每次存储的bufferData
     memcpy(pcm_buffer+pcm_buffer_size, inBuffer->mAudioData, inBuffer->mAudioDataByteSize);
     pcm_buffer_size = pcm_buffer_size + inBuffer->mAudioDataByteSize;

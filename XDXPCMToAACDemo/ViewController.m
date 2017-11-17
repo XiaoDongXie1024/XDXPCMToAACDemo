@@ -9,10 +9,16 @@
 #import "ViewController.h"
 #import "XDXRecoder.h"
 #import <AVFoundation/AVFoundation.h>
+#import "XDXVolumeView.h"
+
+#define kScreenWidth [UIScreen mainScreen].bounds.size.width
+#define kScreenHeight [UIScreen mainScreen].bounds.size.height
+
 
 @interface ViewController ()
 
-@property (nonatomic,retain) XDXRecorder *liveRecorder;
+@property (nonatomic, strong) XDXRecorder    *liveRecorder;
+@property (nonatomic, strong) XDXVolumeView  *recordVolumeView;
 
 @end
 
@@ -32,6 +38,7 @@
 #warning You need select use Audio Unit or Audio Queue
     self.liveRecorder.releaseMethod = XDXRecorderReleaseMethodAudioQueue;
     
+    [self initVoumeView];
 }
 
 
@@ -110,6 +117,34 @@
     }else if (self.liveRecorder.releaseMethod == XDXRecorderReleaseMethodAudioQueue) {
         [self.liveRecorder stopAudioQueueRecorder];
     }
+}
+
+#pragma mark - Volume
+- (void)initVoumeView {
+    CGFloat volumeHeight    = 5;
+    CGFloat dockViewWidth   = 394;
+    CGFloat volumeX         = (kScreenWidth - dockViewWidth) / 2;
+    self.recordVolumeView   = [[XDXVolumeView alloc] initWithFrame:CGRectMake(0, kScreenHeight - volumeHeight, kScreenWidth, volumeHeight)];
+    
+    [self.view addSubview:self.recordVolumeView];
+    
+    [NSTimer scheduledTimerWithTimeInterval:0.25f target:self selector:@selector(updateVolume) userInfo:nil repeats:YES];
+}
+
+-(void)updateVolume {
+    
+    CGFloat volumeRecord = self.liveRecorder.volLDB;
+    
+    if(volumeRecord >= -40 && volumeRecord <= 0) {
+        volumeRecord = volumeRecord + 40;
+    } else if(volumeRecord > 0) {
+        volumeRecord = 40;
+    } else {
+        volumeRecord = 0;
+    }
+    
+//    log4cplus_debug("Volume View","volumeRecord is %f, volumeR is %f",volumeRecord, volumePlay);
+    [self.recordVolumeView setCurrentVolumn:volumeRecord    isRecord:YES];
 }
 
 @end

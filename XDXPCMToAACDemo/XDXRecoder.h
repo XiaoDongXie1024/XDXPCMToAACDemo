@@ -62,6 +62,10 @@ typedef NS_ENUM(NSInteger, XDXRecorderReleaseMethod) {
 @property (nonatomic ,assign)       SInt64                          mRecordPacket;
 @property (readonly)                BOOL                            needsVoiceDemo;
 
+// Volume
+@property (nonatomic, assign)       float                           volLDB;
+@property (nonatomic, assign)       float                           volRDB;
+
 // 区分使用AudioQueue或AudioUnit
 @property (nonatomic, assign)       XDXRecorderReleaseMethod        releaseMethod;
 
